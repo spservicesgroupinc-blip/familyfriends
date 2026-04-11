@@ -1,5 +1,6 @@
 
 import { Report, StoredDocument, IncidentTemplate, UserProfile, User, Message, SharedEvent } from '../types';
+import { withRetry } from './retry';
 
 const DEFAULT_API_URL ='https://script.google.com/macros/s/AKfycbxMHwMCD3W_IhrgQYGAWadrBloNMxYKIXUB_GKtajgBN_kriFNev_NpaKwL5ZPxV5WWzQ/exec'
 let API_URL = localStorage.getItem('custodyx_api_url') || DEFAULT_API_URL;
@@ -13,14 +14,24 @@ const request = async (action: string, data: any = {}) => {
     const targetUrl = API_URL || DEFAULT_API_URL;
     const separator = targetUrl.includes('?') ? '&' : '?';
     const urlWithAction = `${targetUrl}${separator}action=${encodeURIComponent(action)}`;
-    const response = await fetch(urlWithAction, {
-        method: 'POST', 
-        mode: 'cors',
-        body: JSON.stringify({ action, ...data })
+    
+    return withRetry(async () => {
+        const response = await fetch(urlWithAction, {
+            method: 'POST',
+            mode: 'cors',
+            body: JSON.stringify({ action, ...data })
+        });
+        const result = await response.json();
+        if (result.status === 'error') throw new Error(result.message);
+        return result;
+    }, {
+        maxRetries: 3,
+        initialDelay: 1000,
+        maxDelay: 8000,
+        onRetry: (error, attempt, delay) => {
+            console.warn(`API request "${action}" failed (attempt ${attempt}), retrying in ${Math.round(delay)}ms:`, error.message);
+        }
     });
-    const result = await response.json();
-    if (result.status === 'error') throw new Error(result.message);
-    return result;
 };
 
 export const api = {

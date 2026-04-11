@@ -1,5 +1,5 @@
 
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useRef, useMemo, Suspense, lazy } from 'react';
 import Header from './components/Header';
 import Sidebar from './components/Sidebar';
 import BottomNav from './components/BottomNav';
@@ -19,6 +19,8 @@ import Messaging from './components/Messaging';
 import AuthScreen from './components/AuthScreen';
 import ScriptureModal from './components/ScriptureModal';
 import UpgradeModal from './components/UpgradeModal';
+import ErrorBoundary from './components/ErrorBoundary';
+import { LoadingSpinner } from './components/Skeleton';
 import { Report, UserProfile as UserProfileType, StoredDocument, View, IncidentTemplate, User, SubscriptionTier } from './types';
 import { SparklesIcon } from './components/icons';
 import { api } from './services/api';
@@ -465,36 +467,35 @@ const App: React.FC = () => {
     const isChatView = view === 'new_report' || view === 'assistant' || view === 'messaging';
 
     return (
-        <div className="h-[100dvh] bg-gray-100 flex flex-col">
-            <Header 
-                onMenuClick={() => setIsSidebarOpen(prev => !prev)} 
-                onProfileClick={() => handleViewChange('profile')}
-                onAgentClick={handleAgentClick}
-                onLogoutClick={handleLogout}
-                tokens={userProfile?.tokens}
-            />
-            <div className="flex flex-1 pt-16 overflow-hidden relative">
-                 {isSidebarOpen && (
-                    <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} aria-hidden="true"></div>
-                )}
-                <Sidebar 
-                    activeView={view} 
-                    onViewChange={handleViewChange} 
-                    reportCount={reports.length}
-                    isOpen={isSidebarOpen}
-                    onLogout={handleLogout}
-                    userTier={userProfile?.tier}
+        <ErrorBoundary>
+            <div className="h-[100dvh] bg-gray-100 flex flex-col">
+                <Header
+                    onMenuClick={() => setIsSidebarOpen(prev => !prev)}
+                    onProfileClick={() => handleViewChange('profile')}
+                    onAgentClick={handleAgentClick}
+                    onLogoutClick={handleLogout}
+                    tokens={userProfile?.tokens}
                 />
-                <main className={`flex-1 ${isChatView ? 'p-0 sm:p-6 lg:p-8 flex flex-col' : 'p-4 sm:p-6 lg:p-8 overflow-y-auto'} pb-24 md:pb-6`}>
-                    <div className={`mx-auto max-w-7xl w-full ${isChatView ? 'flex-1 min-h-0' : ''}`}>
-                        {isLoadingData ? (
-                            <div className="flex justify-center items-center h-full">
-                                <SparklesIcon className="w-8 h-8 text-blue-500 animate-spin" />
-                            </div>
-                        ) : renderView()}
-                    </div>
-                </main>
-            </div>
+                <div className="flex flex-1 pt-16 overflow-hidden relative">
+                     {isSidebarOpen && (
+                        <div className="fixed inset-0 bg-black/50 z-40 lg:hidden" onClick={() => setIsSidebarOpen(false)} aria-hidden="true"></div>
+                    )}
+                    <Sidebar
+                        activeView={view}
+                        onViewChange={handleViewChange}
+                        reportCount={reports.length}
+                        isOpen={isSidebarOpen}
+                        onLogout={handleLogout}
+                        userTier={userProfile?.tier}
+                    />
+                    <main className={`flex-1 ${isChatView ? 'p-0 sm:p-6 lg:p-8 flex flex-col' : 'p-4 sm:p-6 lg:p-8 overflow-y-auto'} pb-24 md:pb-6`}>
+                        <div className={`mx-auto max-w-7xl w-full ${isChatView ? 'flex-1 min-h-0' : ''}`}>
+                            {isLoadingData ? (
+                                <LoadingSpinner size="w-12 h-12" />
+                            ) : renderView()}
+                        </div>
+                    </main>
+                </div>
             
             <BottomNav 
                 activeView={view}
@@ -552,6 +553,7 @@ const App: React.FC = () => {
             <Toast show={isOffline} message="You are currently offline. Changes will sync when online." type="warning" />
             <Toast show={showUpdate} message="A new version is available." type="info" onAction={handleUpdate} actionText="Refresh" />
         </div>
+        </ErrorBoundary>
     );
 };
 
